@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/database";
+import { sendSMS } from "../services/smsService";
 
 interface CallWebhookBody {
   callerPhone: string;
@@ -13,7 +14,7 @@ export const handleIncomingCall = async (req: Request, res: Response): Promise<v
   const { callerPhone, destinationPhone, duration, status, recordingUrl } = req.body as CallWebhookBody;
 
   if (!callerPhone || !destinationPhone || !status) {
-    res.status(400).json({ message: "Missing required fields: callerPhone, destinationPhone, status" });
+    res.status(400).json({ message: "שדות חסרים: callerPhone, destinationPhone, status הם שדות חובה" });
     return;
   }
 
@@ -23,7 +24,7 @@ export const handleIncomingCall = async (req: Request, res: Response): Promise<v
     });
 
     if (!pro) {
-      res.status(404).json({ message: `No active Pro found for phone: ${destinationPhone}` });
+      res.status(404).json({ message: `לא נמצא בעל מקצוע פעיל עם מספר הטלפון: ${destinationPhone}` });
       return;
     }
 
@@ -39,13 +40,19 @@ export const handleIncomingCall = async (req: Request, res: Response): Promise<v
     });
 
     if (status === "missed") {
-      // TODO: trigger SMS to Pro notifying them of a missed lead
-      console.log(`[SMS PLACEHOLDER] Missed call from ${callerPhone} to Pro "${pro.name}" (${pro.phone}). Call ID: ${call.id}`);
+      await sendSMS(
+        pro.phone,
+        `שלום ${pro.name}, שיחה שלא נענתה מהמספר ${callerPhone}. מזהה שיחה: ${call.id}`
+      );
     }
 
-    res.status(201).json({ success: true, callId: call.id, proId: pro.id });
+    res.status(201).json({
+      הצלחה: true,
+      מזהה_שיחה: call.id,
+      מזהה_בעל_מקצוע: pro.id,
+    });
   } catch (error) {
-    console.error("[webhook/call] Error:", error);
-    res.status(500).json({ message: "Internal server error while processing call webhook" });
+    console.error("[webhook/שיחה] שגיאה:", error);
+    res.status(500).json({ message: "שגיאת שרת פנימית בעת עיבוד נתוני השיחה" });
   }
 };
