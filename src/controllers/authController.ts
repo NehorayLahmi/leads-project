@@ -10,11 +10,22 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "7d";
 const BCRYPT_ROUNDS = 10;
 
 // POST /api/auth/register
+// Creates a User (auth) + ProProfile (business) in a single transaction.
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body as { email: string; password: string };
+  const { email, password, firstName, lastName, phone, city, profession } = req.body as {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    city: string;
+    profession: string;
+  };
 
-  if (!email || !password) {
-    res.status(400).json({ message: "שדות חסרים: email ו-password הם שדות חובה" });
+  if (!email || !password || !firstName || !lastName || !phone || !city || !profession) {
+    res.status(400).json({
+      message: "שדות חסרים: email, password, firstName, lastName, phone, city, profession הם שדות חובה",
+    });
     return;
   }
   if (password.length < 6) {
@@ -30,9 +41,25 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
     const user = await prisma.user.create({
-      data: { email, passwordHash, role: "PRO" },
-      select: { id: true, email: true, role: true, createdAt: true },
+      data: {
+        email,
+        passwordHash,
+        role: "PRO",
+        proProfile: {
+          create: { firstName, lastName, phone, city, profession },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        proProfile: {
+          select: { id: true, firstName: true, lastName: true, phone: true, city: true, profession: true },
+        },
+      },
     });
 
     res.status(201).json({ message: "המשתמש נרשם בהצלחה", user });
@@ -52,7 +79,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { proProfile: { select: { id: true, firstName: true, lastName: true, profession: true, city: true } } },
+    });
+
     if (!user) {
       res.status(401).json({ message: "פרטי הכניסה שגויים" });
       return;
@@ -65,7 +96,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, email: user.email, role: user.role, proProfileId: user.proProfile?.id },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
     );
@@ -73,7 +104,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json({
       message: "התחברות בוצעה בהצלחה",
       token,
-      user: { id: user.id, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        proProfile: user.proProfile,
+      },
     });
   } catch (error) {
     console.error("[auth/login] שגיאה:", error);
@@ -90,7 +126,6 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     return;
   }
 
-  // Always return 200 — never reveal if an email exists in the system
   const successMessage = "אם האימייל קיים במערכת, ישלח אליו קישור לאיפוס סיסמה";
 
   try {
@@ -101,7 +136,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
     await prisma.user.update({
       where: { email },
@@ -133,6 +168,42 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     res.json({ message: successMessage });
   } catch (error) {
     console.error("[auth/forgot-password] שגיאה:", error);
+    res.status(500).json({ message: "שגיאת שרת פנימית בעת איפוס הסיסמה" });
+  }
+};
+
+// POST /api/auth/reset-password
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  const { token, password } = req.body as { token: string; password: string };
+
+  if (!token || !password) {
+    res.status(400).json({ message: "שדות חסרים: token ו-password הם שדות חובה" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ message: "הסיסמה חייבת להכיל לפחות 6 תווים" });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: { resetToken: token, resetTokenExpiry: { gt: new Date() } },
+    });
+
+    if (!user) {
+      res.status(400).json({ message: "הקישור לאיפוס הסיסמה אינו תקין או פג תוקף" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, resetToken: null, resetTokenExpiry: null },
+    });
+
+    res.json({ message: "הסיסמה אופסה בהצלחה. כעת ניתן להתחבר עם הסיסמה החדשה." });
+  } catch (error) {
+    console.error("[auth/reset-password] שגיאה:", error);
     res.status(500).json({ message: "שגיאת שרת פנימית בעת איפוס הסיסמה" });
   }
 };

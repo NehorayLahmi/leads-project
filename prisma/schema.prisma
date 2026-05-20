@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,45 +12,87 @@ enum UserRole {
   PRO
 }
 
+enum LeadStatus {
+  NEW
+  ASSIGNED
+  NOTIFIED
+  CONVERTED
+}
+
+// ─── Auth Layer ──────────────────────────────────────────────────────────────
+// Credentials only. Never holds business or profile data.
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
+  id               String      @id @default(uuid())
+  email            String      @unique
   passwordHash     String
-  role             UserRole  @default(ADMIN)
+  role             UserRole    @default(PRO)
   resetToken       String?
   resetTokenExpiry DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime    @default(now())
+  proProfile       ProProfile?
 }
 
-model Pro {
-  id           String     @id @default(uuid())
-  name         String
+// ─── Business Layer ───────────────────────────────────────────────────────────
+// 1-to-1 with User (PRO role). Holds all operational profile data.
+model ProProfile {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id])
+  firstName    String
+  lastName     String
   phone        String
   city         String
-  isActive     Boolean    @default(true)
-  pricePerLead Int
+  profession   String
+  pricePerLead Int           @default(0)
+  isActive     Boolean       @default(true)
+  adminLocked  Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  leads        Lead[]
+  landingPages LandingPage[]
   calls        Call[]
-  formLeads    FormLead[]
 }
 
-model Call {
-  id               String  @id @default(uuid())
-  callerPhone      String
-  destinationPhone String
-  duration         Int
-  status           String
-  recordingUrl     String?
-  proId            String
-  pro              Pro     @relation(fields: [proId], references: [id])
-}
-
-model FormLead {
-  id          String   @id @default(uuid())
+// ─── Operational Layer ────────────────────────────────────────────────────────
+// All inbound leads (from forms). Matched to a ProProfile by city + profession.
+model Lead {
+  id          String     @id @default(uuid())
   clientName  String
   clientPhone String
   city        String
-  issueType   String
-  isSentToPro Boolean  @default(false)
+  profession  String
+  status      LeadStatus @default(NEW)
   proId       String?
-  pro         Pro?     @relation(fields: [proId], references: [id])
+  pro         ProProfile? @relation(fields: [proId], references: [id])
+  createdAt   DateTime   @default(now())
+}
+
+model LandingPage {
+  id            String     @id @default(uuid())
+  city          String
+  profession    String
+  twilioNumber  String
+  mainTitle     String
+  subTitle      String
+  description   String     @db.Text
+  heroImage     String
+  profileImage  String?
+  galleryImages String     @db.Text
+  proId         String
+  pro           ProProfile @relation(fields: [proId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([city, profession])
+}
+
+model Call {
+  id               String      @id @default(uuid())
+  callerPhone      String
+  destinationPhone String
+  duration         Int         @default(0)
+  status           String
+  recordingUrl     String?
+  proId            String?
+  pro              ProProfile? @relation(fields: [proId], references: [id])
+  createdAt        DateTime    @default(now())
 }

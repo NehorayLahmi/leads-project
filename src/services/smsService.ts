@@ -1,5 +1,12 @@
 import twilio from "twilio";
 
+export function toE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("972")) return `+${digits}`;
+  if (digits.startsWith("0") && digits.length === 10) return `+972${digits.slice(1)}`;
+  return phone; // already formatted or unrecognized — pass through
+}
+
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
 
 const isTwilioConfigured =
@@ -20,13 +27,14 @@ export async function sendSMS(to: string, message: string): Promise<void> {
     return;
   }
 
+  const e164 = toE164(to);
   try {
     await client.messages.create({
       body: message,
       from: TWILIO_PHONE_NUMBER,
-      to,
+      to: e164,
     });
-    console.log(`[SMS נשלח] ל-${to}: ${message}`);
+    console.log(`[SMS נשלח] ל-${e164}: ${message}`);
   } catch (err: any) {
     // Twilio error code 21608 = unverified number on trial account
     if (err?.code === 21608) {
