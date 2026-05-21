@@ -172,6 +172,38 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
   }
 };
 
+// GET /api/auth/me
+export const getMe = async (req: Request, res: Response): Promise<void> => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ message: "נדרשת אימות" });
+    return;
+  }
+  const token = auth.slice(7);
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; email: string; role: string; proProfileId?: string };
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        proProfile: {
+          select: { id: true, firstName: true, lastName: true, phone: true, city: true, profession: true, isActive: true },
+        },
+      },
+    });
+    if (!user) {
+      res.status(401).json({ message: "משתמש לא נמצא" });
+      return;
+    }
+    res.json({ user });
+  } catch {
+    res.status(401).json({ message: "טוקן לא תקין" });
+  }
+};
+
 // POST /api/auth/reset-password
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   const { token, password } = req.body as { token: string; password: string };

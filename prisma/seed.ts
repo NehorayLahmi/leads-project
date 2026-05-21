@@ -2,6 +2,21 @@ import prisma from "../src/config/database";
 import bcrypt from "bcrypt";
 
 async function main() {
+  // ── 0. Admin User ─────────────────────────────────────────────────────────
+  const adminPasswordHash = await bcrypt.hash(process.env.ADMIN_SEED_PASSWORD ?? "Admin123!", 10);
+
+  const admin = await prisma.user.upsert({
+    where: { email: process.env.ADMIN_SEED_EMAIL ?? "admin@leads.local" },
+    update: { passwordHash: adminPasswordHash },
+    create: {
+      email: process.env.ADMIN_SEED_EMAIL ?? "admin@leads.local",
+      passwordHash: adminPasswordHash,
+      role: "ADMIN",
+    },
+  });
+
+  console.log(`✅ Admin: ${admin.email}`);
+
   // ── 1. Auth User ──────────────────────────────────────────────────────────
   const passwordHash = await bcrypt.hash("seed123!", 10);
 
