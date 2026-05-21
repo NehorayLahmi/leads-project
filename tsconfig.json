@@ -16,8 +16,7 @@
     "sourceMap": true
   },
   
-  "include": [
-    "src/**/*", "tsconfig.json" ],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 
 }
