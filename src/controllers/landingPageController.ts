@@ -1,6 +1,18 @@
 import { Request, Response } from "express";
 import prisma from "../config/database";
 
+export const listLandingPageSlugs = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const pages = await prisma.landingPage.findMany({
+      select: { city: true, profession: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    res.json(pages);
+  } catch {
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
 export const getLandingPage = async (req: Request, res: Response): Promise<void> => {
   const profession = req.params.profession as string;
   const city = req.params.city as string;
