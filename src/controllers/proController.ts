@@ -51,6 +51,32 @@ export const getAllPros = async (_req: Request, res: Response): Promise<void> =>
   }
 };
 
+// POST /api/pros/link-telegram  (public — called by Telegram webhook)
+export const linkTelegramCode = async (req: Request, res: Response): Promise<void> => {
+  const { code, chatId } = req.body as { code?: string; chatId?: string };
+
+  if (!code || !chatId) {
+    res.status(400).json({ message: "חסרים code ו-chatId" });
+    return;
+  }
+
+  try {
+    const pro = await prisma.proProfile.findFirst({ where: { verificationCode: code } });
+    if (!pro) {
+      res.status(404).json({ message: "קוד לא נמצא" });
+      return;
+    }
+    await prisma.proProfile.update({
+      where: { id: pro.id },
+      data: { telegramChatId: chatId, verificationCode: null },
+    });
+    res.json({ message: "חובר בהצלחה" });
+  } catch (error) {
+    console.error("[link-telegram]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
 // POST /api/pros/connect-telegram  (isPro)
 export const connectTelegram = async (req: ProRequest, res: Response): Promise<void> => {
   const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.body as {

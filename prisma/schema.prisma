@@ -55,8 +55,9 @@ model ProProfile {
   pricePerLead Int           @default(0)
   isActive        Boolean       @default(true)
   adminLocked     Boolean       @default(false)
-  telegramChatId  String?
-  createdAt        DateTime      @default(now())
+  telegramChatId    String?
+  verificationCode  String?       @unique
+  createdAt         DateTime      @default(now())
   leads        Lead[]
   landingPages LandingPage[]
   calls        Call[]
