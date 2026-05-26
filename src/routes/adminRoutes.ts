@@ -17,6 +17,8 @@ import {
   getAllLeadsAdmin,
   getSettings,
   updateSettings,
+  telegramBroadcast,
+  telegramSendToPro,
 } from "../controllers/adminController";
 
 const router = Router();
@@ -44,5 +46,8 @@ router.get("/leads", getAllLeadsAdmin);
 
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
+
+router.post("/telegram/broadcast", telegramBroadcast);
+router.post("/telegram/send/:proId", telegramSendToPro);
 
 export default router;

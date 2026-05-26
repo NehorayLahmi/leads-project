@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import prisma from "../config/database";
+import { sendTelegram } from "../services/telegramService";
 
 // GET /api/admin/stats
 export const getDashboardStats = async (_req: Request, res: Response): Promise<void> => {
@@ -387,6 +388,49 @@ export const getAllCallsAdmin = async (_req: Request, res: Response): Promise<vo
     res.json(calls);
   } catch (error) {
     console.error("[admin/calls GET]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// POST /api/admin/telegram/broadcast
+export const telegramBroadcast = async (req: Request, res: Response): Promise<void> => {
+  const { message } = req.body as { message?: string };
+  if (!message?.trim()) {
+    res.status(400).json({ message: "שדה חובה: message" });
+    return;
+  }
+  try {
+    const pros = await prisma.proProfile.findMany({
+      where: { telegramChatId: { not: null } },
+      select: { telegramChatId: true },
+    });
+    await Promise.all(pros.map(p => sendTelegram(p.telegramChatId, message.trim())));
+    res.json({ sent: pros.length });
+  } catch (error) {
+    console.error("[telegram/broadcast]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// POST /api/admin/telegram/send/:proId
+export const telegramSendToPro = async (req: Request, res: Response): Promise<void> => {
+  const { proId } = req.params;
+  const { message } = req.body as { message?: string };
+  if (!message?.trim()) {
+    res.status(400).json({ message: "שדה חובה: message" });
+    return;
+  }
+  try {
+    const pro = await prisma.proProfile.findUnique({
+      where: { id: proId },
+      select: { telegramChatId: true, firstName: true, lastName: true },
+    });
+    if (!pro) { res.status(404).json({ message: "נציג לא נמצא" }); return; }
+    if (!pro.telegramChatId) { res.status(400).json({ message: "לנציג אין טלגרם מחובר" }); return; }
+    await sendTelegram(pro.telegramChatId, message.trim());
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("[telegram/send]", error);
     res.status(500).json({ message: "שגיאת שרת" });
   }
 };
