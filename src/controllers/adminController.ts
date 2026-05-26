@@ -105,7 +105,7 @@ export const createPro = async (req: Request, res: Response): Promise<void> => {
 // PATCH /api/admin/pros/:id
 export const updatePro = async (req: Request, res: Response): Promise<void> => {
   const id = req.params.id as string;
-  const { firstName, lastName, phone, city, profession, pricePerLead, telegramChatId } = req.body as {
+  const { firstName, lastName, phone, city, profession, pricePerLead, telegramChatId, verificationCode } = req.body as {
     firstName?: string;
     lastName?: string;
     phone?: string;
@@ -113,13 +113,17 @@ export const updatePro = async (req: Request, res: Response): Promise<void> => {
     profession?: string;
     pricePerLead?: number;
     telegramChatId?: string | null;
+    verificationCode?: string | null;
   };
 
   try {
     const updated = await prisma.proProfile.update({
       where: { id },
-      data: { firstName, lastName, phone, city, profession, pricePerLead,
-               ...(telegramChatId !== undefined && { telegramChatId: telegramChatId || null }) },
+      data: {
+        firstName, lastName, phone, city, profession, pricePerLead,
+        ...(telegramChatId   !== undefined && { telegramChatId:   telegramChatId   || null }),
+        ...(verificationCode !== undefined && { verificationCode: verificationCode || null }),
+      },
       include: { user: { select: { email: true } } },
     });
     res.json(updated);

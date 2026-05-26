@@ -3,6 +3,21 @@ import crypto from "crypto";
 import prisma from "../config/database";
 import type { ProRequest } from "../middleware/isPro";
 
+// POST /api/pros/generate-verification-code  (isPro)
+export const generateVerificationCode = async (req: ProRequest, res: Response): Promise<void> => {
+  const code = crypto.randomBytes(4).toString("hex").toUpperCase(); // 8-char hex
+  try {
+    await prisma.proProfile.update({
+      where: { id: req.proProfileId! },
+      data: { verificationCode: code },
+    });
+    res.json({ code });
+  } catch (error) {
+    console.error("[generate-verification-code]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
 // GET /api/pros/:id  — full profile with leads + calls for dashboard
 export const getProById = async (req: Request, res: Response): Promise<void> => {
   const id = req.params.id as string;
