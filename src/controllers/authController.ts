@@ -25,8 +25,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
   const emailClean = sanitize(email ?? "").toLowerCase();
   const firstClean = sanitize(firstName ?? "");
-  const lastClean  = sanitize(lastName  ?? "");
-  const phoneClean = sanitize(phone     ?? "");
+  const lastClean = sanitize(lastName ?? "");
+  const phoneClean = sanitize(phone ?? "");
 
   if (!emailClean || !password || !firstClean || !lastClean || !phoneClean || !city || !profession) {
     res.status(400).json({ message: "שדות חסרים: email, password, firstName, lastName, phone, city, profession הם שדות חובה" });
@@ -172,7 +172,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       data: { resetToken, resetTokenExpiry },
     });
 
-    const resetLink = `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     await sendEmail(
       email,
