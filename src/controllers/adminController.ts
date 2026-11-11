@@ -1,7 +1,24 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
 import prisma from "../config/database";
 import { sendTelegram } from "../services/telegramService";
+
+function parsePagination(query: Request["query"]) {
+  const page = Math.max(1, parseInt(String(query.page ?? "1"), 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(String(query.limit ?? "10"), 10) || 10));
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+function parseDateRange(query: Request["query"]): { gte?: Date; lte?: Date } | undefined {
+  const dateFrom = query.dateFrom ? String(query.dateFrom) : undefined;
+  const dateTo = query.dateTo ? String(query.dateTo) : undefined;
+  if (!dateFrom && !dateTo) return undefined;
+  const range: { gte?: Date; lte?: Date } = {};
+  if (dateFrom) range.gte = new Date(`${dateFrom}T00:00:00`);
+  if (dateTo) range.lte = new Date(`${dateTo}T23:59:59.999`);
+  return range;
+}
 
 // GET /api/admin/stats
 export const getDashboardStats = async (_req: Request, res: Response): Promise<void> => {
@@ -398,15 +415,54 @@ export const deleteLandingPage = async (req: Request, res: Response): Promise<vo
 };
 
 // GET /api/admin/calls
-export const getAllCallsAdmin = async (_req: Request, res: Response): Promise<void> => {
+// ללא ?page - מחזיר את כל הרשומות (לצרכי גרף המגמות בסקירה הכללית).
+// עם ?page - מחזיר עמוד מסונן/ממוין מהשרת, לתצוגת "תנועה" המתוגגלת.
+export const getAllCallsAdmin = async (req: Request, res: Response): Promise<void> => {
   try {
-    const calls = await prisma.call.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
-      },
-    });
-    res.json(calls);
+    if (!req.query.page) {
+      const calls = await prisma.call.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
+        },
+      });
+      res.json(calls);
+      return;
+    }
+
+    const { page, limit, skip } = parsePagination(req.query);
+    const { search, proId } = req.query as Record<string, string | undefined>;
+    const createdAt = parseDateRange(req.query);
+
+    const where: Prisma.CallWhereInput = {
+      ...(proId ? { proId } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              { callerPhone: { contains: search } },
+              { destinationPhone: { contains: search } },
+              { pro: { firstName: { contains: search, mode: "insensitive" } } },
+              { pro: { lastName: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.call.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
+        },
+      }),
+      prisma.call.count({ where }),
+    ]);
+
+    res.json({ items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (error) {
     console.error("[admin/calls GET]", error);
     res.status(500).json({ message: "שגיאת שרת" });
@@ -509,16 +565,71 @@ export const toggleDraftLandingPage = async (req: Request, res: Response): Promi
   }
 };
 
-// GET /api/admin/leads
-export const getAllLeadsAdmin = async (_req: Request, res: Response): Promise<void> => {
+// DELETE /api/admin/leads/:id
+export const deleteLeadAdmin = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string;
   try {
-    const leads = await prisma.lead.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
-      },
-    });
-    res.json(leads);
+    const { count } = await prisma.lead.deleteMany({ where: { id } });
+    if (count === 0) {
+      res.status(404).json({ message: "ליד לא נמצא" });
+      return;
+    }
+    res.json({ message: "הליד נמחק" });
+  } catch (error) {
+    console.error("[admin/leads DELETE]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// GET /api/admin/leads
+// ללא ?page - מחזיר את כל הרשומות (לצרכי גרף המגמות בסקירה הכללית).
+// עם ?page - מחזיר עמוד מסונן/ממוין מהשרת, לתצוגת "תנועה" המתוגגלת.
+export const getAllLeadsAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.query.page) {
+      const leads = await prisma.lead.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
+        },
+      });
+      res.json(leads);
+      return;
+    }
+
+    const { page, limit, skip } = parsePagination(req.query);
+    const { search, proId } = req.query as Record<string, string | undefined>;
+    const createdAt = parseDateRange(req.query);
+
+    const where: Prisma.LeadWhereInput = {
+      ...(proId ? { proId } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              { clientName: { contains: search, mode: "insensitive" } },
+              { clientPhone: { contains: search } },
+              { pro: { firstName: { contains: search, mode: "insensitive" } } },
+              { pro: { lastName: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.lead.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          pro: { select: { firstName: true, lastName: true, phone: true, city: true, profession: true } },
+        },
+      }),
+      prisma.lead.count({ where }),
+    ]);
+
+    res.json({ items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (error) {
     console.error("[admin/leads GET]", error);
     res.status(500).json({ message: "שגיאת שרת" });

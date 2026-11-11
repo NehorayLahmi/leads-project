@@ -71,6 +71,8 @@ model Lead {
   city        String
   profession  String
   status      LeadStatus  @default(NEW)
+  jobClosed   Boolean?    // null = טרם עודכן, true = נסגרה עבודה, false = לא נסגרה
+  jobClosedAt DateTime?
   proId       String?
   pro         ProProfile? @relation(fields: [proId], references: [id])
   createdAt   DateTime    @default(now())
@@ -109,6 +111,8 @@ model Call {
   status           String
   recordingUrl     String?
   type             CallType    @default(PHONE)
+  jobClosed        Boolean?    // null = טרם עודכן, true = נסגרה עסקה, false = לא נסגרה
+  jobClosedAt      DateTime?
   proId            String?
   pro              ProProfile? @relation(fields: [proId], references: [id])
   createdAt        DateTime    @default(now())

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/database";
-import { notifyProAndMaybeAdmin } from "../services/telegramService";
+import { notifyProAndMaybeAdmin, jobKeyboard } from "../services/telegramService";
 import { sanitize, isValidName, isValidPhone } from "../utils/validate";
 
 interface LeadBody {
@@ -50,7 +50,8 @@ export const handleFormLead = async (req: Request, res: Response): Promise<void>
 
       await notifyProAndMaybeAdmin(
         pro.telegramChatId,
-        `🔔 <b>ליד חדש הגיע!</b>\n\n👤 <b>שם לקוח:</b> ${name}\n📞 <b>טלפון:</b> ${phone}\n📍 <b>עיר:</b> ${city}\n🛠 <b>שירות:</b> ${profession}`
+        `🔔 <b>ליד חדש הגיע!</b>\n\n👤 <b>שם לקוח:</b> ${name}\n📞 <b>טלפון:</b> ${phone}\n📍 <b>עיר:</b> ${city}\n🛠 <b>שירות:</b> ${profession}`,
+        jobKeyboard("lead", lead.id, null)
       );
 
       res.status(201).json({
@@ -74,7 +75,8 @@ export const handleFormLead = async (req: Request, res: Response): Promise<void>
       console.log(`[ליד לא משויך] לא נמצא נציג פעיל עבור "${profession}" ב-"${city}". מזהה ליד: ${lead.id}`);
       await notifyProAndMaybeAdmin(
         null,
-        `⚠️ <b>ליד לא משויך!</b>\n\n👤 <b>שם לקוח:</b> ${name}\n📞 <b>טלפון:</b> ${phone}\n📍 <b>עיר:</b> ${city}\n🛠 <b>שירות:</b> ${profession}\n\nאין נציג פעיל — יש לטפל ידנית.`
+        `⚠️ <b>ליד לא משויך!</b>\n\n👤 <b>שם לקוח:</b> ${name}\n📞 <b>טלפון:</b> ${phone}\n📍 <b>עיר:</b> ${city}\n🛠 <b>שירות:</b> ${profession}\n\nאין נציג פעיל — יש לטפל ידנית.`,
+        jobKeyboard("lead", lead.id, null)
       );
 
       res.status(201).json({

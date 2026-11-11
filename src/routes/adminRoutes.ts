@@ -17,11 +17,13 @@ import {
   toggleDraftLandingPage,
   getAllCallsAdmin,
   getAllLeadsAdmin,
+  deleteLeadAdmin,
   getSettings,
   updateSettings,
   telegramBroadcast,
   telegramSendToPro,
 } from "../controllers/adminController";
+import { updateJobStatusAdmin } from "../controllers/jobStatusController";
 
 const router = Router();
 
@@ -47,6 +49,8 @@ router.delete("/landing-pages/:id", deleteLandingPage);
 
 router.get("/calls", getAllCallsAdmin);
 router.get("/leads", getAllLeadsAdmin);
+router.delete("/leads/:id", deleteLeadAdmin);
+router.patch("/job-status/:kind/:id", updateJobStatusAdmin);
 
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);

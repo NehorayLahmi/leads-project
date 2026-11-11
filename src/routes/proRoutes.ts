@@ -5,6 +5,7 @@ import {
   updateProLandingPage,
 } from "../controllers/proLandingPageController";
 import { isPro } from "../middleware/isPro";
+import { updateJobStatusPro } from "../controllers/jobStatusController";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.patch("/:id", updateProStatus);
 router.post("/link-telegram", linkTelegramCode);
 router.post("/generate-verification-code", isPro, generateVerificationCode);
 router.post("/connect-telegram", isPro, connectTelegram);
+router.patch("/job-status/:kind/:id", isPro, updateJobStatusPro);
 
 // Pro CMS — landing page management (JWT-protected, ownership-enforced)
 router.get("/:proId/landing-pages", isPro, getLandingPagesForPro);
