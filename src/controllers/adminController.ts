@@ -30,7 +30,13 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
       prisma.proProfile.findMany({
         select: {
           pricePerLead: true,
-          _count: { select: { leads: true, calls: true } },
+          // לחיוב נספרים רק לידים/שיחות שאושרו ("נסגרה עסקה") ע"י בעל המקצוע או המנהל
+          _count: {
+            select: {
+              leads: { where: { jobClosed: true } },
+              calls: { where: { jobClosed: true } },
+            },
+          },
         },
       }),
     ]);
