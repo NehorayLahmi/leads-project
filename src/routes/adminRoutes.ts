@@ -18,6 +18,8 @@ import {
   getAllCallsAdmin,
   getAllLeadsAdmin,
   deleteLeadAdmin,
+  bulkDeleteLeadsAdmin,
+  bulkDeleteCallsAdmin,
   disconnectProTelegramAdmin,
   getSettings,
   updateSettings,
@@ -52,6 +54,8 @@ router.delete("/landing-pages/:id", deleteLandingPage);
 router.get("/calls", getAllCallsAdmin);
 router.get("/leads", getAllLeadsAdmin);
 router.delete("/leads/:id", deleteLeadAdmin);
+router.post("/leads/bulk-delete", bulkDeleteLeadsAdmin);
+router.post("/calls/bulk-delete", bulkDeleteCallsAdmin);
 router.patch("/job-status/:kind/:id", updateJobStatusAdmin);
 
 router.get("/settings", getSettings);

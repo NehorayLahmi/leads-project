@@ -606,6 +606,51 @@ export const deleteLeadAdmin = async (req: Request, res: Response): Promise<void
   }
 };
 
+// ─── מחיקה מרובה (בחירה ברשימת "תנועה") ────────────────────────────────────────
+const BULK_DELETE_MAX = 500;
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+/** מחזיר רשימת מזהים תקינה מגוף הבקשה, או הודעת שגיאה */
+function parseBulkIds(body: unknown): { ids: string[] } | { error: string } {
+  const ids = (body as { ids?: unknown })?.ids;
+  if (!Array.isArray(ids) || ids.length === 0) return { error: "יש לבחור לפחות רשומה אחת" };
+  if (ids.length > BULK_DELETE_MAX) return { error: `ניתן למחוק עד ${BULK_DELETE_MAX} רשומות בפעם אחת` };
+  if (!ids.every((id) => typeof id === "string" && UUID_RE.test(id))) return { error: "מזהה לא תקין ברשימה" };
+  return { ids: Array.from(new Set(ids as string[])) };
+}
+
+// POST /api/admin/leads/bulk-delete   Body: { ids: string[] }
+export const bulkDeleteLeadsAdmin = async (req: Request, res: Response): Promise<void> => {
+  const parsed = parseBulkIds(req.body);
+  if ("error" in parsed) {
+    res.status(400).json({ message: parsed.error });
+    return;
+  }
+  try {
+    const { count } = await prisma.lead.deleteMany({ where: { id: { in: parsed.ids } } });
+    res.json({ message: `נמחקו ${count} לידים`, deleted: count });
+  } catch (error) {
+    console.error("[admin/leads bulk-delete]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// POST /api/admin/calls/bulk-delete   Body: { ids: string[] }
+export const bulkDeleteCallsAdmin = async (req: Request, res: Response): Promise<void> => {
+  const parsed = parseBulkIds(req.body);
+  if ("error" in parsed) {
+    res.status(400).json({ message: parsed.error });
+    return;
+  }
+  try {
+    const { count } = await prisma.call.deleteMany({ where: { id: { in: parsed.ids } } });
+    res.json({ message: `נמחקו ${count} שיחות`, deleted: count });
+  } catch (error) {
+    console.error("[admin/calls bulk-delete]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
 // GET /api/admin/leads
 // ללא ?page - מחזיר את כל הרשומות (לצרכי גרף המגמות בסקירה הכללית).
 // עם ?page - מחזיר עמוד מסונן/ממוין מהשרת, לתצוגת "תנועה" המתוגגלת.
