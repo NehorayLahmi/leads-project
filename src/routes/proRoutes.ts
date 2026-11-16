@@ -5,13 +5,16 @@ import {
   updateProLandingPage,
 } from "../controllers/proLandingPageController";
 import { isPro } from "../middleware/isPro";
+import { isAdmin } from "../middleware/isAdmin";
+import { isSelfOrAdmin } from "../middleware/isSelfOrAdmin";
 import { updateJobStatusPro } from "../controllers/jobStatusController";
 
 const router = Router();
 
-router.get("/", getAllPros);
-router.get("/:id", getProById);
-router.patch("/:id", updateProStatus);
+// רשימת כל הנציגים — מנהל בלבד; פרופיל ועדכון סטטוס — הנציג עצמו או מנהל
+router.get("/", isAdmin, getAllPros);
+router.get("/:id", isSelfOrAdmin, getProById);
+router.patch("/:id", isSelfOrAdmin, updateProStatus);
 
 router.post("/link-telegram", linkTelegramCode);
 router.post("/generate-verification-code", isPro, generateVerificationCode);
