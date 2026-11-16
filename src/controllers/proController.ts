@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 import prisma from "../config/database";
 import type { ProRequest } from "../middleware/isPro";
+import { unlinkProTelegram } from "../services/telegramService";
 
 // POST /api/pros/generate-verification-code  (isPro)
 export const generateVerificationCode = async (req: ProRequest, res: Response): Promise<void> => {
@@ -88,6 +89,24 @@ export const linkTelegramCode = async (req: Request, res: Response): Promise<voi
     res.json({ message: "חובר בהצלחה" });
   } catch (error) {
     console.error("[link-telegram]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// POST /api/pros/disconnect-telegram  (isPro) — הנציג מתנתק מהבוט בעצמו
+export const disconnectTelegram = async (req: ProRequest, res: Response): Promise<void> => {
+  try {
+    const result = await unlinkProTelegram(
+      req.proProfileId!,
+      "🔌 נותקת מהבוט. לא תקבל יותר התראות על לידים ושיחות.\nאפשר להתחבר מחדש בכל עת מלשונית הפרופיל במערכת."
+    );
+    if (result === "not_found") {
+      res.status(404).json({ message: "נציג לא נמצא" });
+      return;
+    }
+    res.json({ message: "טלגרם נותק", telegramChatId: null });
+  } catch (error) {
+    console.error("[disconnect-telegram]", error);
     res.status(500).json({ message: "שגיאת שרת" });
   }
 };

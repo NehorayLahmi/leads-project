@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import prisma from "../config/database";
-import { sendTelegram } from "../services/telegramService";
+import { sendTelegram, unlinkProTelegram } from "../services/telegramService";
 
 function parsePagination(query: Request["query"]) {
   const page = Math.max(1, parseInt(String(query.page ?? "1"), 10) || 1);
@@ -183,6 +183,25 @@ export const toggleProStatus = async (req: Request, res: Response): Promise<void
     res.json(updated);
   } catch (error) {
     console.error("[admin/pros toggle]", error);
+    res.status(500).json({ message: "שגיאת שרת" });
+  }
+};
+
+// DELETE /api/admin/pros/:id/telegram — המנהל מנתק נציג מהבוט
+export const disconnectProTelegramAdmin = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  try {
+    const result = await unlinkProTelegram(
+      id,
+      "🔌 החיבור שלך לבוט נותק על ידי מנהל המערכת. לא תקבל יותר התראות על לידים ושיחות."
+    );
+    if (result === "not_found") {
+      res.status(404).json({ message: "נציג לא נמצא" });
+      return;
+    }
+    res.json({ message: "טלגרם נותק", telegramChatId: null });
+  } catch (error) {
+    console.error("[admin/pros telegram DELETE]", error);
     res.status(500).json({ message: "שגיאת שרת" });
   }
 };

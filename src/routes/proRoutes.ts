@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllPros, getProById, updateProStatus, connectTelegram, linkTelegramCode, generateVerificationCode } from "../controllers/proController";
+import { getAllPros, getProById, updateProStatus, connectTelegram, disconnectTelegram, linkTelegramCode, generateVerificationCode } from "../controllers/proController";
 import {
   getLandingPagesForPro,
   updateProLandingPage,
@@ -19,6 +19,7 @@ router.patch("/:id", isSelfOrAdmin, updateProStatus);
 router.post("/link-telegram", linkTelegramCode);
 router.post("/generate-verification-code", isPro, generateVerificationCode);
 router.post("/connect-telegram", isPro, connectTelegram);
+router.post("/disconnect-telegram", isPro, disconnectTelegram);
 router.patch("/job-status/:kind/:id", isPro, updateJobStatusPro);
 
 // Pro CMS — landing page management (JWT-protected, ownership-enforced)

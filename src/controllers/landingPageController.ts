@@ -40,6 +40,17 @@ export const getLandingPage = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // נציג כבוי — כפתורי החיוג וה-WhatsApp בדף מפנים למספר של המנהל במקום לנציג,
+    // כך שהנציג לא מקבל פניות בזמן שהוא כבוי (טופס הלידים כבר מנותב למנהל בנפרד).
+    if (!page.pro.isActive) {
+      const fallback = process.env.ADMIN_FALLBACK_PHONE?.trim();
+      if (fallback) {
+        res.json({ ...page, twilioNumber: fallback, pro: { ...page.pro, phone: fallback }, usingFallback: true });
+        return;
+      }
+      console.warn(`[pages] נציג כבוי ב-${profession}/${city} אבל ADMIN_FALLBACK_PHONE לא מוגדר — מוצג מספר הנציג`);
+    }
+
     res.json(page);
   } catch (error) {
     console.error("[pages] שגיאה:", error);

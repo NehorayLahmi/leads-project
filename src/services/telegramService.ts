@@ -62,6 +62,26 @@ export async function editMessageReplyMarkup(
   await callTelegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: replyMarkup });
 }
 
+/**
+ * ניתוק נציג מהבוט: מוחק את ה-chatId (וקוד אימות פתוח, אם יש) ושולח הודעת פרידה לצ'אט הישן.
+ * מחזיר "not_found" אם הנציג לא קיים, "not_linked" אם לא היה מחובר.
+ */
+export async function unlinkProTelegram(
+  proId: string,
+  farewell: string
+): Promise<"ok" | "not_found" | "not_linked"> {
+  const pro = await prisma.proProfile.findUnique({ where: { id: proId }, select: { telegramChatId: true } });
+  if (!pro) return "not_found";
+  if (!pro.telegramChatId) return "not_linked";
+
+  await prisma.proProfile.update({
+    where: { id: proId },
+    data: { telegramChatId: null, verificationCode: null },
+  });
+  await send(pro.telegramChatId, farewell);
+  return "ok";
+}
+
 export async function sendTelegram(chatId: string | null | undefined, message: string): Promise<void> {
   const target = chatId?.trim() || ADMIN_CHAT_ID;
   await send(target, message);

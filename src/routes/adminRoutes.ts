@@ -18,6 +18,7 @@ import {
   getAllCallsAdmin,
   getAllLeadsAdmin,
   deleteLeadAdmin,
+  disconnectProTelegramAdmin,
   getSettings,
   updateSettings,
   telegramBroadcast,
@@ -39,6 +40,7 @@ router.put("/pros/:proId/landing-pages/:pageId", updateProLandingPageAdmin);
 router.get("/pros/:proId", getSingleProAdmin);
 router.patch("/pros/:id", updatePro);
 router.patch("/pros/:id/toggle-status", toggleProStatus);
+router.delete("/pros/:id/telegram", disconnectProTelegramAdmin);
 router.delete("/pros/:id", deletePro);
 
 router.post("/landing-pages", createLandingPage);
